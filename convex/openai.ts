@@ -49,9 +49,9 @@ export const dall_e = action({
 			size: "1024x1024",
 		});
 
-		const imageUrl = res.data[0].url;
+		const imageUrl = (res.data && res.data.length > 0 && res.data[0].url) ? res.data[0].url : "/poopenai.png";
 		await ctx.runMutation(api.messages.sendChatGPTMessage, {
-			content: imageUrl ?? "/poopenai.png",
+			content: imageUrl,
 			conversation: args.conversation,
 			messageType: "image",
 		});
