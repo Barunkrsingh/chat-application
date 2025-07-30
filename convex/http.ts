@@ -1,12 +1,14 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import type { WebhookEvent } from "@clerk/backend";
+import { Webhook } from "svix";
 
 const http = httpRouter();
 
 http.route({
-	path: "/clerk",
-	method: "POST",
+	path: "/clerk-users-webhook",
+  method: "POST",
 	handler: httpAction(async (ctx, req) => {
 		const payloadString = await req.text();
 		const headerPayload = req.headers;
