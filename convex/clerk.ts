@@ -1,24 +1,25 @@
 "use node";
 
-import type { WebhookEvent } from "@clerk/clerk-sdk-node";
-import { v } from "convex/values";
-
+import { httpAction } from "./_generated/server";
 import { Webhook } from "svix";
-
-import { internalAction } from "./_generated/server";
+import type { WebhookEvent } from "@clerk/clerk-sdk-node";
 
 const WEB_HOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET as string;
 
-export const fulfill = internalAction({
-	args: {
-		headers: v.any(),
-		payload: v.string(),
-	},
-	handler: async (ctx, args) => {
-		const wh = new Webhook(WEB_HOOK_SECRET);
-		const payload = wh.verify(args.payload, args.headers) as WebhookEvent;
-		return payload;
-	},
-});
+export const clerk = httpAction(async (ctx, request) => {
+  const payload = await request.text();
+  const headers = Object.fromEntries(request.headers.entries());
 
-// https://docs.convex.dev/functions/internal-functions
+  try {
+    const wh = new Webhook(WEB_HOOK_SECRET);
+    const evt = wh.verify(payload, headers) as WebhookEvent;
+
+    console.log("✅ Clerk Webhook Verified:", evt.type);
+
+    // TODO: Do something with evt (like user.created)
+    return new Response(null, { status: 200 });
+  } catch (err) {
+    console.error("❌ Webhook verification failed:", err);
+    return new Response("Invalid webhook", { status: 400 });
+  }
+});
