@@ -43,17 +43,18 @@ export const sendTextMessage = mutation({
 			messageType: "text",
 		});
 
-		// TODO => add @gpt check later
-		if (args.content.startsWith("@gpt")) {
+		// Changed @gpt to @gemini for text generation
+		if (args.content.startsWith("@gemini")) {
 			// Schedule the chat action to run immediately
-			await ctx.scheduler.runAfter(0, api.openai.chat, {
+			await ctx.scheduler.runAfter(0, api.openai.chat, { // api.openai.chat will now point to Gemini's chat action
 				messageBody: args.content,
 				conversation: args.conversation,
 			});
 		}
 
-		if (args.content.startsWith("@dall-e")) {
-			await ctx.scheduler.runAfter(0, api.openai.dall_e, {
+		// Changed @dall-e to @gemini-image for image generation (if integrated)
+		if (args.content.startsWith("@gemini-image")) {
+			await ctx.scheduler.runAfter(0, api.openai.dall_e, { // api.openai.dall_e will now point to Gemini's image action
 				messageBody: args.content,
 				conversation: args.conversation,
 			});
@@ -61,7 +62,7 @@ export const sendTextMessage = mutation({
 	},
 });
 
-export const sendChatGPTMessage = mutation({
+export const sendAIGeneratedMessage = mutation({ // Renamed from sendChatGPTMessage
 	args: {
 		content: v.string(),
 		conversation: v.id("conversations"),
@@ -70,7 +71,7 @@ export const sendChatGPTMessage = mutation({
 	handler: async (ctx, args) => {
 		await ctx.db.insert("messages", {
 			content: args.content,
-			sender: "ChatGPT",
+			sender: "Gemini AI", // Changed sender to Gemini AI
 			messageType: args.messageType,
 			conversation: args.conversation,
 		});
@@ -97,9 +98,9 @@ export const getMessages = query({
 
 		const messagesWithSender = await Promise.all(
 			messages.map(async (message) => {
-				if (message.sender === "ChatGPT") {
-					const image = message.messageType === "text" ? "/gpt.png" : "dall-e.png";
-					return { ...message, sender: { name: "ChatGPT", image } };
+				if (message.sender === "Gemini AI") { // Changed from "ChatGPT" to "Gemini AI"
+					const image = message.messageType === "text" ? "/gemini.png" : "/gemini-image.png"; // Updated image paths
+					return { ...message, sender: { name: "Gemini AI", image } };
 				}
 				let sender;
 				// Check if sender profile is in cache

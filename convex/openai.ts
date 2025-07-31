@@ -1,10 +1,16 @@
-import OpenAI from "openai";
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
+import { GoogleGenerativeAI } from "@google/generative-ai"; // Import Gemini AI SDK
 
-const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({ apiKey });
+const apiKey = process.env.GEMINI_API_KEY; // Use GEMINI_API_KEY for Gemini
+
+// Add a check to ensure apiKey is defined
+if (!apiKey) {
+    throw new Error("GEMINI_API_KEY environment variable not set.");
+}
+
+const genAI = new GoogleGenerativeAI(apiKey); // Initialize Gemini AI
 
 export const chat = action({
 	args: {
@@ -12,59 +18,54 @@ export const chat = action({
 		conversation: v.id("conversations"),
 	},
 	handler: async (ctx, args) => {
-		const res = await openai.chat.completions.create({
-			model: "gpt-3.5-turbo", // "gpt-4" also works, but is so slow!
-			messages: [
-				{
-					role: "system",
-					content: "You are a terse bot in a group chat responding to questions with 1-sentence answers",
-				},
-				{
-					role: "user",
-					content: args.messageBody,
-				},
-			],
-		});
+		const model = genAI.getGenerativeModel({ model: "gemini-pro" }); // Use gemini-pro for text generation
 
-		const messageContent = res.choices[0].message.content;
+		try {
+			const result = await model.generateContent(args.messageBody); // Generate content using Gemini
+			const response = await result.response;
+			const messageContent = response.text(); // Get the text content from Gemini's response
 
-		await ctx.runMutation(api.messages.sendChatGPTMessage, {
-			content: messageContent ?? "I'm sorry, I don't have a response for that",
-			conversation: args.conversation,
-			messageType: "text",
-		});
+			await ctx.runMutation(api.messages.sendAIGeneratedMessage, { // Call the renamed mutation
+				content: messageContent ?? "I'm sorry, I don't have a response for that",
+				conversation: args.conversation,
+				messageType: "text",
+			});
+		} catch (error) {
+			console.error("Error generating Gemini chat response:", error);
+			await ctx.runMutation(api.messages.sendAIGeneratedMessage, {
+				content: "An error occurred while processing your request with Gemini AI.",
+				conversation: args.conversation,
+				messageType: "text",
+			});
+		}
 	},
 });
 
-export const dall_e = action({
+export const dall_e = action({ // This action will now handle image requests, but with Gemini's current capabilities
 	args: {
 		conversation: v.id("conversations"),
 		messageBody: v.string(),
 	},
 	handler: async (ctx, args) => {
-		const res = await openai.images.generate({
-			model: "dall-e-3",
-			prompt: args.messageBody,
-			n: 1,
-			size: "1024x1024",
+		// Gemini AI's `gemini-pro` model does not directly support image generation from text prompts like DALL-E.
+		// If you need image generation, you would typically integrate a separate service here (e.g., Google Cloud's Imagen, or another third-party image generation API).
+		// For demonstration, we'll send a message indicating this limitation or a placeholder.
+
+		const errorMessage = "Gemini AI (gemini-pro) does not support image generation directly. Please use a dedicated image generation service.";
+		const placeholderImageUrl = "/no-image-available.png"; // You might want to have a placeholder image
+
+		// Option 1: Send an error message as text
+		await ctx.runMutation(api.messages.sendAIGeneratedMessage, {
+			content: errorMessage,
+			conversation: args.conversation,
+			messageType: "text",
 		});
 
-		const imageUrl = (res.data && res.data.length > 0 && res.data[0].url) ? res.data[0].url : "/poopenai.png";
-		await ctx.runMutation(api.messages.sendChatGPTMessage, {
-			content: imageUrl,
-			conversation: args.conversation,
-			messageType: "image",
-		});
+		// Option 2: Send a placeholder image (if you have one)
+		// await ctx.runMutation(api.messages.sendAIGeneratedMessage, {
+		// 	content: placeholderImageUrl,
+		// 	conversation: args.conversation,
+		// 	messageType: "image",
+		// });
 	},
 });
-
-// 1 token ~= 4 chars in English
-// 1 token ~= ¾ words
-// 100 tokens ~= 75 words
-// Or
-// 1-2 sentence ~= 30 tokens
-// 1 paragraph ~= 100 tokens
-// 1,500 words ~= 2048 tokens
-
-// 1 image will cost $0,04(4 cents) => dall-e-3
-// 1 image will cost $0,02(2 cents) => dall-e-2
