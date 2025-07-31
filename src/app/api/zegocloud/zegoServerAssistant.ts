@@ -147,3 +147,4 @@ export function generateToken04(
 	// console.log('-----------------');
 	return "04" + Buffer.from(dv.buffer).toString("base64");
 }
+
