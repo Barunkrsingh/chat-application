@@ -2,8 +2,16 @@
 const nextConfig = {
 	images: {
 		remotePatterns: [
-			{ hostname: "valiant-partridge-243.convex.cloud" },
-			{ hostname: "oaidalleapiprodscus.blob.core.windows.net" },
+			{
+				protocol: "https",
+				hostname: "wandering-okapi-896.convex.cloud",
+				pathname: "/api/storage/**", // Allow all under /api/storage
+			},
+			{
+				protocol: "https",
+				hostname: "oaidalleapiprodscus.blob.core.windows.net",
+				pathname: "/**", // Allow all paths
+			},
 		],
 	},
 };
